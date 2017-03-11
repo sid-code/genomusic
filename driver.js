@@ -7,7 +7,6 @@
     el.addEventListener("click", () => {
       console.log(melody);
       melody.play(actx, actx.destination, 160);
-      melody.map(n => n+5).play(actx, actx.destination, 160);
     });
 
     el.innerText = melody.getScore();

@@ -157,7 +157,7 @@
 
   // Utilities for calculating melody score
 
-  const intervalRanks = [8, 10, 3, 9, 4, 7, 2, 5,0 ].reverse();
+  const intervalRanks = [8, 10, 3, 0, 9, 4, 7, 2, 5];
   const badIntervalRanks = [null, null, null, 1, 11];
   // Scores how "good" an interval sounds
   const intervalScore = (a, b) => {
