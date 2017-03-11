@@ -1,7 +1,6 @@
 /*
  * For our purposes, a melody is just a sequence of notes, so subclassing Array
  * works well.
- *
  */
 
 (() => {
