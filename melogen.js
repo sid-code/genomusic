@@ -8,7 +8,7 @@
     constructor(rng, initialJitter = 4, mutationSize = 3) {
       this.rng = rng;
       this.generations = [];
-      
+
       this.initialJitter = initialJitter;
       this.mutationSize = mutationSize;
     }
@@ -22,6 +22,7 @@
       var curNote = 0;
       notes.push(curNote);
       for (i = 0; i < size - 1; i++) {
+        if (this.rng.next() < 0.2) {notes.push(null);continue}
         const jitter1 = this.rng.nextInt(-this.initialJitter, this.initialJitter + 1);
         const jitter2 = this.rng.nextInt(-this.initialJitter, this.initialJitter + 1);
         // Two jitters are calculated to bias against zero
@@ -38,7 +39,6 @@
       this.generations.push([melody]);
 
       return melody;
-
     }
 
 

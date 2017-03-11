@@ -62,9 +62,11 @@
       var i, j, a, b;
       for (i = 0; i < len - 1; i++) {
         a = this[i];
+        if (a == null) continue;
 
         for (j = i + 1; j < len; j++) {
           b = this[j];
+          if (b == null) continue;
           score += intervalScore(a, b);
         }
 
@@ -76,12 +78,12 @@
 
     getNoteVariance() {
       if (this.variance) this.variance;
-      return this.variance = variance(this);
+      return this.variance = variance(this.filter(x => x != null));
     }
 
     getDistinctNotes() {
       if (this.distinctNotes) this.distinctNotes;
-      return this.distinctNotes = distinctNotes(this);
+      return this.distinctNotes = distinctNotes(this.filter(x => x != null));
     }
 
     // Play this melody using AudioContext `actx`
@@ -90,8 +92,9 @@
       // This will be our note generator
       const osc = actx.createOscillator();
       const gain = actx.createGain();
+      gain.connect(output);
       osc.type = "sine";
-      osc.connect(output);
+      osc.connect(gain);
 
       const spb = 60/tempo * 1000;
 
@@ -106,7 +109,6 @@
           osc.start();
           started = true;
         }
-        gain.gain.value = 0.5;
 
         if (++pos >= this.length) {
           osc.stop();
@@ -114,8 +116,17 @@
           return;
         }
 
-        const freq = noteToFreq(this[pos]);
-        osc.frequency.value = freq;
+        const note = this[pos];
+        if (note == null) {
+          console.log("HIT A NULL");
+          gain.gain.value = 0;
+          console.log(gain.gain);
+        } else {
+          const freq = noteToFreq(this[pos]);
+          gain.gain.value = 1;
+          osc.frequency.value = freq;
+        }
+
 
       }, spb);
 
@@ -131,7 +142,11 @@
       // we start at 1 to avoid mutating the first note
       // this makes it easier to compare the melodies by ear
       for (i = 1; i < len; i++) {
-        newNotes[i] = this[i] + (rng.next() > 1/len) * rng.nextInt(-mutationSize, mutationSize + 1);
+        if (this[i] == null) {
+          newNotes[i] = rng.next() > 1/(len * len) ? null : this[i-1];
+        } else {
+          newNotes[i] = this[i] + (rng.next > 1/(len * len)) ? (rng.next() > 1/len) * rng.nextInt(-mutationSize, mutationSize + 1) : null;
+        }
       }
 
       return new Melody(...newNotes);
