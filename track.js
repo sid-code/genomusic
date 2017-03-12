@@ -59,6 +59,42 @@
       return plainScore + chordScore * 2;
     }
 
+    addBackingVoice(rng) {
+      const backingNotes = [];
+      const mainVoice = this.voices[0];
+      for (const chord of mainVoice.chordProg) {
+        const type = rng.nextInt(0, 3);
+        switch(type) {
+          case 0:
+            backingNotes.push(chord[0]);
+            backingNotes.push(chord[2]);
+            backingNotes.push(chord[1]);
+            backingNotes.push(chord[2]);
+            break;
+          case 1:
+            backingNotes.push(chord[1]);
+            backingNotes.push(chord[2]);
+            backingNotes.push(chord[0]);
+            backingNotes.push(chord[2]);
+            break;
+          case 2:
+            backingNotes.push(chord[1]);
+            backingNotes.push(chord[2]);
+            backingNotes.push(chord[0]);
+            backingNotes.push(chord[2]);
+            break;
+        }
+      }
+
+      const backingMelody = new Melody(...backingNotes);
+      console.log(backingMelody);
+      this.voices.push(backingMelody);
+    }
+
+    removeBackingVoice() {
+      this.voices.pop();
+    }
+
     play(tempo = 120) {
       for (const voice of this.voices) {
         voice.play(tempo);

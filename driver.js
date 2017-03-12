@@ -9,7 +9,8 @@
     el.addEventListener("click", () => {
       console.log(track);
       if (midiLoaded) {
-	track.playOld(actx, actx.destination, 160);
+        track.addBackingVoice(rng);
+        track.play(160, () => track.removeBackingVoice());
       }
     });
 
@@ -54,7 +55,7 @@
     });
     const actx = new AudioContext();
 
-    const seed = trackEvolver.initSeed(rng, {rows: 1, cols: 24, jitter: 4});
+    const seed = trackEvolver.initSeed(rng, {rows: 1, cols: 8, jitter: 4});
     const seedEl = createTrackButton(seed, actx);
     const seedLabel = document.createElement("p");
     seedLabel.innerText = "Seed: ";

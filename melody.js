@@ -120,12 +120,19 @@
         lastChord = curChord;
       }
 
+      if (score == 1 && this.chordProg.length > 0) {
+        if (this.chordProg.every(chord => chord == this.chordProg[0])) {
+          console.log("ALL CHORDS ARE SAME");
+          return 0;
+        }
+      }
+
 
       return score;
     }
 
     // Play this melody using AudioContext `actx`
-    play(tempo = 120) {
+    play(tempo, callback) {
 
       var pos = 0;
       const spb = 60/tempo;
@@ -134,6 +141,7 @@
       const t = setInterval(() => {
         if (pos++ >= this.length) {
           clearInterval(t); 
+          if (callback) callback();
           return;
         }
 
@@ -151,7 +159,7 @@
     }
 
     // OLD METHOD (but better?!) Play this melody using AudioContext `actx`
-    playOld(actx, output, tempo = 120) {
+    playOld(actx, output, tempo, callback) {
       console.log(actx);
 
       // This will be our note generator
@@ -178,6 +186,7 @@
         if (++pos >= this.length) {
           osc.stop();
           clearInterval(t); 
+          if (callback) callback;
           return;
         }
 
@@ -229,8 +238,7 @@
 
       var i;
       var curNote = 0;
-      notes.push(curNote);
-      for (i = 0; i < size - 1; i++) {
+      for (i = 0; i < size; i++) {
         //if (rng.next() < 0.2) {
         //  notes.push(null);
         //  continue
@@ -266,8 +274,8 @@
   }
 
   Melody.ScoringParameters = {
-    optimalDistinctNotes: 6,
-    optimalVariance: 7,
+    optimalDistinctNotes: 8,
+    optimalVariance: 10,
   };
 
   // Utilities for calculating melody score
