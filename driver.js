@@ -1,18 +1,22 @@
 (() => {
+  const actx = new AudioContext();
   const rng = new PSprng(Math.random());
-  const mev = new MelodyEvolver(rng, 4, 5);
+  const trackEvolver = new TrackEvolver(rng, MatrixTrack, 40);
+  var midiLoaded = false;
 
-  const createMelodyButton = (melody, actx) => {
+  const createTrackButton = (track, actx) => {
     const el = document.createElement("button");
     el.addEventListener("click", () => {
-      console.log(melody);
-      melody.play(actx, actx.destination, 160);
+      console.log(track);
+      if (midiLoaded) {
+	track.playOld(actx, actx.destination, 160);
+      }
     });
 
-    el.innerText = melody.getScore();
-    const gen = melody.generation;
+    el.innerText = track.score();
+    const gen = track.generation;
     const cval = Math.floor(255 - gen * 255/30);
-    el.style.backgroundColor = "rgb(" + cval + "," + cval + "," + cval + ")";
+    //el.style.backgroundColor = "rgb(" + cval + "," + cval + "," + cval + ")";
 
     return el;
   };
@@ -23,13 +27,11 @@
     const genLabel = document.createElement("p");
     genLabel.innerText = "Generation " + curGenIndex + ": ";
 
-    const nextGen = mev.stepGen();
+    const nextGen = trackEvolver.stepGen();
 
-    for (melody of nextGen) {
-      const melodyEl = createMelodyButton(melody, actx);
-      genLabel.appendChild(melodyEl);
-
-
+    for (track of nextGen) {
+      const trackEl = createTrackButton(track, actx);
+      genLabel.appendChild(trackEl);
     }
 
     document.body.appendChild(genLabel);
@@ -39,45 +41,30 @@
   }
 
   const ready = () => {
+
+    MIDI.loadPlugin({
+      soundfontUrl: "./midi-js-soundfonts/FluidR3_GM/",
+      instrument: "acoustic_grand_piano",
+      onprogress: function(state, progress) {
+	console.log(state, progress);
+      },
+      onsuccess: function() {
+	midiLoaded = true;
+      }
+    });
     const actx = new AudioContext();
 
-    const seed = mev.initSeed(8);
-    const seedEl = createMelodyButton(seed, actx);
+    const seed = trackEvolver.initSeed(rng, {rows: 1, cols: 24, jitter: 4});
+    const seedEl = createTrackButton(seed, actx);
     const seedLabel = document.createElement("p");
     seedLabel.innerText = "Seed: ";
     document.body.appendChild(seedLabel);
     seedLabel.appendChild(seedEl);
 
     var curGen = [seed];
-
-    curGen = nextGeneration(curGen, actx);
-    curGen = nextGeneration(curGen, actx);
-    curGen = nextGeneration(curGen, actx);
-    curGen = nextGeneration(curGen, actx);
-    curGen = nextGeneration(curGen, actx);
-    curGen = nextGeneration(curGen, actx);
-    curGen = nextGeneration(curGen, actx);
-    curGen = nextGeneration(curGen, actx);
-    curGen = nextGeneration(curGen, actx);
-    curGen = nextGeneration(curGen, actx);
-    curGen = nextGeneration(curGen, actx);
-    curGen = nextGeneration(curGen, actx);
-    curGen = nextGeneration(curGen, actx);
-    curGen = nextGeneration(curGen, actx);
-    curGen = nextGeneration(curGen, actx);
-    curGen = nextGeneration(curGen, actx);
-    curGen = nextGeneration(curGen, actx);
-    curGen = nextGeneration(curGen, actx);
-    curGen = nextGeneration(curGen, actx);
-    curGen = nextGeneration(curGen, actx);
-    curGen = nextGeneration(curGen, actx);
-    curGen = nextGeneration(curGen, actx);
-    curGen = nextGeneration(curGen, actx);
-    curGen = nextGeneration(curGen, actx);
-    curGen = nextGeneration(curGen, actx);
-    curGen = nextGeneration(curGen, actx);
-    curGen = nextGeneration(curGen, actx);
-    curGen = nextGeneration(curGen, actx);
+    document.addEventListener("keypress", e => {
+      curGen = nextGeneration(curGen, actx);
+    });
   };
   document.addEventListener("DOMContentLoaded", ready);
 })();

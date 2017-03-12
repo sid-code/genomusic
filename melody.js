@@ -10,15 +10,15 @@
     // The heuristic (or fitness function) that represents how good a melody
     // sounds (how viable is it?)
 
-    getScore() {
-      if (this.score) this.score;
+    score() {
+      if (this.scoreCache) this.scoreCache;
 
       // Look at every pair of notes and add the interval score to the total
       // score `intervalScore(note1, note2)` tells us roughly how good two
       // notes sound when played together, and this seems to translate well
       // into melodies. The higher this is, the better.
 
-      var score = this.getHarmonicScore();
+      var score = this.getHarmonicScore() || 1;
 
       // We don't want there to be too many different notes. If this is the case,
       // then the melody sounds random and unpleasant.
@@ -29,23 +29,27 @@
       // its optimal value. This is not known, and what follows is a guess.
 
       const distinctNotes = this.getDistinctNotes();
-      const varietyFactor = 1 - 0.25 * Math.abs(distinctNotes / Melody.ScoringParameters.optimalDistinctNotes - 1)
+      const varietyFactor = Math.max(0, 1 - Math.abs(distinctNotes / Melody.ScoringParameters.optimalDistinctNotes - 1));
 
-      score *= varietyFactor;
+      //score *= varietyFactor;
 
       // The variance of notes is important too; we don't want it to be too high
       // (or too low for that matter). Again, the optimal value for this is not
       // known.
 
       const vnc = this.getNoteVariance();
-      const varianceFactor = 1 - 0.5 * Math.abs(vnc / Melody.ScoringParameters.optimalVariance - 1);
+      const varianceFactor = Math.max(0, 1 - Math.abs(vnc / Melody.ScoringParameters.optimalVariance - 1));
 
-      if (varianceFactor === Infinity) alert("INF");
       score *= varianceFactor;
+
 
       //console.log("Variety factor:", varietyFactor, "Variance factor:", varianceFactor);
 
-      return this.score = Math.floor(score);
+      // Get the chord progression score
+      const cpgFactor = this.getChordScore(4);
+      score *= cpgFactor;
+
+      return this.scoreCache = Math.floor(score);
     }
 
     getHarmonicScore() {
@@ -73,12 +77,16 @@
       }
 
       return this.harmonicScore = score;
-
     }
 
     getNoteVariance() {
       if (this.variance) this.variance;
-      return this.variance = variance(this.filter(x => x != null));
+      const filtered = this.filter(x => x != null);
+      if (filtered.length === 0) {
+        return 0;
+      }
+
+      return this.variance = variance(filtered);
     }
 
     getDistinctNotes() {
@@ -86,8 +94,65 @@
       return this.distinctNotes = distinctNotes(this.filter(x => x != null));
     }
 
+    getChordScore(barSize) {
+      // first, chunk into `chunkSize`-length bars
+      const bars = [];
+      var cur = [];
+      for (const note of this) {
+        if (cur.push(note) >= barSize) {
+          bars.push(cur);
+          cur = [];
+        }
+      }
+
+      this.chordProg = [];
+
+      var score = 1;
+
+      var lastChord = null;
+      for (const bar of bars) {
+        const curChord = Chord.bestMatch(bar);
+        this.chordProg.push(curChord);
+        if (lastChord != null && !Chord.isGoodTransition(lastChord, curChord)) {
+          score = 0;
+        }
+
+        lastChord = curChord;
+      }
+
+
+      return score;
+    }
+
     // Play this melody using AudioContext `actx`
-    play(actx, output, tempo = 120) {
+    play(tempo = 120) {
+
+      var pos = 0;
+      const spb = 60/tempo;
+      MIDI.setVolume(0, 127);
+
+      const t = setInterval(() => {
+        if (pos++ >= this.length) {
+          clearInterval(t); 
+          return;
+        }
+
+        const note = this[pos];
+        if (note == null) {
+          console.log("pause");
+        } else {
+          const midiNote = noteToMIDINote(note);
+          MIDI.noteOn(0, midiNote, 127, 0);
+          MIDI.noteOff(0, midiNote, 127, spb);
+        }
+
+      }, spb * 1000);
+
+    }
+
+    // OLD METHOD (but better?!) Play this melody using AudioContext `actx`
+    playOld(actx, output, tempo = 120) {
+      console.log(actx);
 
       // This will be our note generator
       const osc = actx.createOscillator();
@@ -139,18 +204,53 @@
       const len = this.length;
 
       var i;
-      // we start at 1 to avoid mutating the first note
-      // this makes it easier to compare the melodies by ear
+      // we start at 1 to avoid mutating the first note this makes it easier to
+      // compare the melodies by ear
+      //
+      // Don't try to understand the math here, I've forgotten how it works too
+      // (but guess what, it works lol)
+
       for (i = 1; i < len; i++) {
-        if (this[i] == null) {
-          newNotes[i] = rng.next() > 1/(len * len) ? null : this[i-1];
-        } else {
-          newNotes[i] = this[i] + (rng.next > 1/(len * len)) ? (rng.next() > 1/len) * rng.nextInt(-mutationSize, mutationSize + 1) : null;
-        }
+        newNotes[i] = this[i] + rng.nextInt(-mutationSize, mutationSize + 1);
       }
+      //for (i = 1; i < len; i++) {
+      //  if (this[i] == null) {
+      //    newNotes[i] = rng.next() > 1/(len * len) ? null : this[i-1];
+      //  } else {
+      //    newNotes[i] = this[i] + (rng.next() > 1/(len * len)) ? (rng.next() > 1/len) * rng.nextInt(-mutationSize, mutationSize + 1) : null;
+      //  }
+      //}
 
       return new Melody(...newNotes);
     }
+
+    static genRandom(rng, size, jitter = 4) {
+      const notes = []
+
+      var i;
+      var curNote = 0;
+      notes.push(curNote);
+      for (i = 0; i < size - 1; i++) {
+        //if (rng.next() < 0.2) {
+        //  notes.push(null);
+        //  continue
+        //}
+        const jitter1 = rng.nextInt(-jitter, jitter + 1);
+        const jitter2 = rng.nextInt(-jitter, jitter + 1);
+        // Two jitters are calculated to bias against zero
+
+        const delta = jitter1 || jitter2;
+        curNote += delta;
+
+        notes.push(curNote);
+      }
+
+      const melody = new Melody(...notes);
+
+      return melody;
+    }
+
+
 
     // Disable mutator methods:
     copyWithin() { throw "melody is immutable"; }
@@ -166,13 +266,13 @@
   }
 
   Melody.ScoringParameters = {
-    optimalDistinctNotes: 5,
-    optimalVariance: 7.5,
+    optimalDistinctNotes: 6,
+    optimalVariance: 7,
   };
 
   // Utilities for calculating melody score
 
-  const intervalRanks = [8, 10, 3, 0, 9, 4, 7, 2, 5];
+  const intervalRanks = [8, 10, 3, 0, 9, 2, 7, 4];
   const badIntervalRanks = [null, null, null, 1, 11];
   // Scores how "good" an interval sounds
   const intervalScore = (a, b) => {
@@ -181,11 +281,11 @@
   };
 
   // Count how many distinct notes (ignoring octave) are in a melody
-  const distinctNotes = melody => new Set(melody.map(x => x%12)).size;
+  const distinctNotes = melody => new Set(melody.map(x => x == null ? null : x%12)).size;
 
   // Simple stats functions
   const mean = ary => {
-    return  ary.reduce( (x, y) => x + y ) / ary.length;
+    return ary.reduce( (x, y) => x + y ) / ary.length;
   };
 
   const variance = ary => {
@@ -195,7 +295,13 @@
 
   // Utilities for playing melody
 
+  const noteToMIDINote = note => note + 48;
   const noteToFreq = note => 440 * Math.pow(2, (note + 3) / 12);
+
+  // Export these functions for reuse
+  Melody.intervalScore = intervalScore;
+  Melody.distinctNotes = distinctNotes;
+  Melody.variance = variance;
 
 
   window.Melody = Melody;

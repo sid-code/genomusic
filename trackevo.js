@@ -1,76 +1,58 @@
 /*
- * This code mutates melodies and calculates their score, keeping good ones.
+ * This code mutates tracks and calculates their score, keeping good ones.
  */
 
 (() => {
 
-  class MelodyEvolver {
-    constructor(rng, initialJitter = 4, mutationSize = 3) {
+  class TrackEvolver {
+    // trackType should be a subclass of Track
+    // for example, MatrixTrack
+    constructor(rng, trackType, mutationSize = 3) {
       this.rng = rng;
+      this.trackType = trackType;
       this.generations = [];
 
-      this.initialJitter = initialJitter;
       this.mutationSize = mutationSize;
     }
 
-    initSeed(size) {
-      this.generations.length = 0;
+    initSeed(rng, params) {
+      const seed = this.trackType.genRandom(this.rng, params);
+      seed.generation = 0;
 
-      const notes = []
+      this.generations[0] = [ seed ];
 
-      var i;
-      var curNote = 0;
-      notes.push(curNote);
-      for (i = 0; i < size - 1; i++) {
-        if (this.rng.next() < 0.2) {notes.push(null);continue}
-        const jitter1 = this.rng.nextInt(-this.initialJitter, this.initialJitter + 1);
-        const jitter2 = this.rng.nextInt(-this.initialJitter, this.initialJitter + 1);
-        // Two jitters are calculated to bias against zero
-
-        const delta = jitter1 || jitter2;
-        curNote += delta;
-
-        notes.push(curNote);
-      }
-
-      const melody = new Melody(...notes);
-      melody.generation = 0;
-
-      this.generations.push([melody]);
-
-      return melody;
+      return seed;
     }
 
-
-    // Mutates each melody in `curGen` `branchSize` times, aggregates all new melodies, and keeps the
+    // Mutates each track in `curGen` `branchSize` times, aggregates all new track, and keeps the
     // best `maxSize` ones.
-    stepGen(fitness = 'getScore', branchSize = 20, maxSize = 30) {
+    stepGen(branchSize = 20, maxSize = 30) {
       if (this.generations.length === 0) {
         throw "initSeed() must be called before stepGen()";
       }
 
-      const newMelodies = [];
+      const newTracks = [];
       const curGen = this.generations[this.generations.length - 1];
 
-      for (const melody of curGen) {
+      for (const track of curGen) {
         let i;
         for (i = 0; i < branchSize; i++) {
-          let mutation = melody.mutate(this.rng, this.mutationSize);
-          if (mutation.getScore() > 0) {
+          let mutation = track.mutate(this.rng, this.mutationSize);
+          if (mutation.score() > 0) {
             mutation.generation = this.generations.length;
-            newMelodies.push(mutation);
+            newTracks.push(mutation);
           }
         }
       }
 
-      const nextGen = curGen.concat(newMelodies).sort( (m1, m2) => m2[fitness]() - m1[fitness]() ).slice(0, maxSize);
+      const nextGen = curGen.concat(newTracks).sort( (t1, t2) => t2.score() - t1.score() ).slice(0, maxSize);
       this.generations.push(nextGen);
       return nextGen;
     }
 
   }
 
-  window.MelodyEvolver = MelodyEvolver;
+  window.TrackEvolver = TrackEvolver;
 
 
 })();
